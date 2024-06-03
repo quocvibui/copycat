@@ -8,31 +8,31 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h> // string manipulation
-#include <sys/stat.h> // check if it is a file
-#include <stdbool.h> // if boolean or not
+#include <string.h> 	// string manipulation
+#include <sys/stat.h> 	// check if it is a file
+#include <stdbool.h> 	// if boolean or not
 
 #define BLOCK 1024 // optimal
 
 /* declare option functions, might move this to a header file*/ 
-void number_non_blank_lines(); // -b
-void number_lines(); // -n
-void non_print(); // -v
-void non_print_char_dollar(); // -e
-void non_print_tab(); // -t
-void squeeze_empty_lines(); // -s
-void advisory_lock(); // -l
-void disable_out_buffer(); // -u
+void number_non_blank_lines(); 	// -b
+void number_lines(); 			// -n
+void non_print(); 				// -v
+void non_print_char_dollar(); 	// -e
+void non_print_tab(); 			// -t
+void squeeze_empty_lines(); 	// -s
+void advisory_lock(); 			// -l
+void disable_out_buffer(); 		// -u
  
 /* global option variables */
-int SOMENUM = 0 // -b
-int ALLNUM = 0 // -n
-int ALLCHAR = 0 // -v
-int DOLLAR = 0 // -e
-int TAB = 0 // -t
-int SQUEEZE = 0 // -s
-int LOCK = 0 // -l
-int DISABLE = 0 // -u
+int SOMENUM = 0; 	// -b
+int ALLNUM = 0;  	// -n
+int ALLCHAR = 0;  	// -v
+int DOLLAR = 0;  	// -e
+int TAB = 0;  		// -t
+int SQUEEZE = 0;	// -s
+int LOCK = 0; 		// -l
+int DISABLE = 0; 	// -u
 
 // error print message
 void invalidOption(char c){
@@ -42,7 +42,7 @@ void invalidOption(char c){
 }
 
 // check if this is a valid option
-int isValidOption(char *str){
+void isValidOption(char *str){
 	for (int i = 0; i < strlen(str); i++){
 		if (str[i] != 'b' || str[i] != 'n' || str[i] != 'v'
 		|| str[i] != 'e' || str[i] != 't' || str[i] != 's'
@@ -73,16 +73,51 @@ void option(char *str){
 }
 
 // return true if file exists
+// https://www.learnc.net/c-tutorial/c-file-exists/
 bool file_exists(const char *filename){
 	struct stat buffer;
 	return stat(filename, &buffer) == 0 ? true : false;
 }
 
+// perform simple printing
+void performOperation(const char *filename){
+	
+	FILE *fp = fopen(filename, "rb");
+	if (fp == NULL){
+		fprintf(stderr, "Error opening file\n");
+		exit(1);
+	}	
+    unsigned char buffer[BLOCK];
+    int byte_read;
+
+    while ((byte_read = fread(buffer, 1, BLOCK, fp)) > 0){
+        fwrite(buffer, 1, byte_read, stdout);
+    }
+
+    fclose(fp); // Close the file
+}
+
+// simply echo if user didn't input anything
+void simplyEcho(){
+	char buffer[BLOCK];
+	while ( fgets(buffer, BLOCK, stdin) ){
+		fprintf(stdout, "%s", buffer);
+	}
+}
+
 int main(int argc, char *argv[]){
+	if (argc == 1){
+		simplyEcho();	
+		return 0;
+	}
+
 	for (int i = 1; i < argc; i++){
 		if (*argv[i] == '-'){
-			isValidOption(argv[i] + 1); // error checking
-			option(argv[i] + 1); // ex: "-bnv" -> "bnv"
+			if (strlen(*argv) == 1) simplyEcho(); 
+			else{
+				isValidOption(argv[i] + 1); // error checking
+				option(argv[i] + 1); // ex: "-bnv" -> "bnv"
+			}
 		}
 		else{
 			if (file_exists(argv[i]))
@@ -91,57 +126,5 @@ int main(int argc, char *argv[]){
 				fprintf(stderr, "copycat: %s: No such file or directory\n", argv[i]);
 		}
 	}
-	return 0;
-}
-
-
-void argc_eq_1(){	
-	char buffer[BLOCK];
-
-}
-
-/* ./copycat <file> */
-void argc_eq_2(FILE *fp){
-
-	// file size of fp
-	fseek(fp, 0, SEEK_END); // go to end
-	int file_size = ftell(fp);
-	rewind(fp); // put the pointer back
-
-	// allocate memory for string
-	char *buffer = malloc(sizeof(char) * (file_size + 1));
-
-	// read fp into buffer
-	while ( fread(buffer, 1, BLOCK, fp) > 0 ){}
-
-	buffer[file_size] = 0; // add null-terminate
-	printf("%s", buffer);
-
-	free(buffer);
-
-}
-
-void argc_eq_3(FILE *fp){
-
-}
-
-int main (int argc, char **argv){
-	if (argc <= 1){
-		argc_eq_1();
-	}
-
-	if (argc != 2){
-		fprintf(stderr, "Usage: ./copycat <file>\n");
-		return 1;
-	}
-
-	FILE *fp = fopen(*(argv + 1), "rb");
-	if (fp == NULL){
-		return 1;
-	}
-
-	argc_eq_2(fp);
-
-	fclose(fp);
 	return 0;
 }
