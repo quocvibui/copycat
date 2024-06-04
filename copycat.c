@@ -4,6 +4,7 @@
  * v.0.0.1
  * 0.0.1
  * 1. implement -b, -n, -v, -e, -t, -s
+ *    Have implemented -n and when user input nothing
  * 2. implement multiple text files together - Done
  */
 #include <stdio.h>
@@ -17,7 +18,7 @@
 
 /* declare option functions, might move this to a header file*/ 
 void number_non_blank_lines(); 	// -b
-void number_lines(); 			// -n
+void number_lines(FILE *fp); 	// -n
 void non_print(); 				// -v
 void non_print_char_dollar(); 	// -e
 void non_print_tab(); 			// -t
@@ -86,7 +87,34 @@ bool file_exists(const char *filename){
 	return stat(filename, &buffer) == 0 ? true : false;
 }
 
-// perform simple printing
+// print all lines with number
+// here I am using fgets(), because it doesn't make sense
+// to have line numbers for a binary file like in the og 'cat'
+// of course, I will try to make it work with line number,
+// meaning, values can be passed through easier...
+void number_lines(FILE *fp){
+	if (ALLNUM != 1) return;
+	
+	char buffer[BLOCK];
+	int lineNo = 1;
+	while ( fgets(buffer, BLOCK, fp) ){
+		printf("%5d:  %s", lineNo, buffer);
+		lineNo++;
+	}
+}
+
+
+// print all lines with nothing special
+void nothing_at_all(FILE *fp){
+	unsigned char buffer[BLOCK];
+    int byte_read;
+
+    while ((byte_read = fread(buffer, 1, BLOCK, fp)) > 0){
+        fwrite(buffer, 1, byte_read, stdout);
+    }
+}
+
+// perform operation based on what the user selected
 void performOperation(const char *filename){
 	
 	FILE *fp = fopen(filename, "rb");
@@ -94,12 +122,9 @@ void performOperation(const char *filename){
 		fprintf(stderr, "Error opening file\n");
 		exit(1);
 	}	
-    unsigned char buffer[BLOCK];
-    int byte_read;
-
-    while ((byte_read = fread(buffer, 1, BLOCK, fp)) > 0){
-        fwrite(buffer, 1, byte_read, stdout);
-    }
+	
+	if (ALLNUM == 1) number_lines(fp);
+	else nothing_at_all(fp);
 
     fclose(fp); // Close the file
 }
