@@ -5,6 +5,8 @@
  * 0.0.1
  * 1. implement -b, -n, -v, -e, -t, -s
  *    Have implemented -n and when user input nothing
+ *    Have implemented -b -s properly
+ *    Implemented -u disable_lock	
  * 2. implement multiple text files together - Done
  */
 #include <stdio.h>
@@ -82,39 +84,85 @@ void option(char *str){
 
 // return true if file exists
 // https://www.learnc.net/c-tutorial/c-file-exists/
-bool file_exists(const char *filename){
+bool fileExists(const char *filename){
 	struct stat buffer;
 	return stat(filename, &buffer) == 0 ? true : false;
 }
 
-// print all lines with number
-// here I am using fgets(), because it doesn't make sense
-// to have line numbers for a binary file like in the og 'cat'
-// of course, I will try to make it work with line number,
-// meaning, values can be passed through easier...
-void number_lines(FILE *fp){
-	if (ALLNUM != 1) return;
+// number the lines function
+int printNumLines(int lineNo, char prevChar){
+	if (ALLNUM != 1) return lineNo;
 	
-	char buffer[BLOCK];
+	if (prevChar == '\n')
+		fprintf(stdout, "%6d  ", lineNo++);
+	
+	return lineNo;
+}
+
+//  number the non blank lines function
+int printNumNonBlank(int lineNo, char curChar, char prevChar){
+	if (SOMENUM != 1) return lineNo;
+	
+	if (prevChar == '\n' && curChar != '\n')
+		fprintf(stdout, "%6d  ", lineNo++);
+	
+	return lineNo;
+}
+
+// squeeze empty lines
+int squeezeEmptyLines(char ch, int *consecutiveNewlines){
+	if (SQUEEZE != 1) return 1;
+	
+	if (ch == '\n') {
+		(*consecutiveNewlines)++;
+			if (*consecutiveNewlines > 2)  return 0; // Skip printings multi-lines
+	} 
+	else 
+		*consecutiveNewlines = 0;
+    
+	return 1;
+}
+
+// print lines
+void processFile(FILE *fp){
+	int ch;
 	int lineNo = 1;
-	while ( fgets(buffer, BLOCK, fp) ){
-		printf("%5d:  %s", lineNo, buffer);
-		lineNo++;
+	int prevChar = EOF;
+	int consecutiveNewlines;
+
+	// Check if the file is empty
+	if ((ch = fgetc(fp)) == EOF) return;
+
+	// for '-b' and '-n'
+	if (ALLNUM == 1 || (SOMENUM == 1 && ch != '\n')){
+		fprintf(stdout, "%6d  ", lineNo++);
 	}
+
+	// Process the first char
+	putchar(ch);
+	prevChar = ch;
+
+	// Use fgetc to read the file
+	while ( (ch = fgetc(fp)) != EOF){
+	
+		// -s
+		if ( !squeezeEmptyLines(ch, &consecutiveNewlines) ){
+			continue; // just simply skip this iteration
+		}
+
+		// -n
+		lineNo = printNumLines(lineNo, prevChar);	
+		
+		// -b
+		lineNo = printNumNonBlank(lineNo, ch, prevChar);
+		
+		putchar(ch);
+		prevChar = ch; // to deal with EOF cases
+	}
+
 }
 
-
-// print all lines with nothing special
-void nothing_at_all(FILE *fp){
-	unsigned char buffer[BLOCK];
-    int byte_read;
-
-    while ((byte_read = fread(buffer, 1, BLOCK, fp)) > 0){
-        fwrite(buffer, 1, byte_read, stdout);
-    }
-}
-
-// perform operation based on what the user selected
+// open and close files
 void performOperation(const char *filename){
 	
 	FILE *fp = fopen(filename, "rb");
@@ -123,8 +171,7 @@ void performOperation(const char *filename){
 		exit(1);
 	}	
 	
-	if (ALLNUM == 1) number_lines(fp);
-	else nothing_at_all(fp);
+	processFile(fp);
 
     fclose(fp); // Close the file
 }
@@ -159,6 +206,10 @@ int main(int argc, char *argv[]){
 		return 0;
 	}
 
+	// -u disable output buffering, placed here so we can call it once
+	if (DISABLE == 1)
+		setvbuf(stdout, NULL, _IONBF, 0);
+
 	for (int i = 1; i < argc; i++){
 		if (*argv[i] == '-'){
 			if (strlen(argv[i]) == 1){
@@ -170,7 +221,7 @@ int main(int argc, char *argv[]){
 			}
 		}
 		else{
-			if (file_exists(argv[i]))
+			if (fileExists(argv[i]))
 				performOperation(argv[i]); // execute the files
 			else
 				fprintf(stderr, "copycat: %s: No such file or directory\n", argv[i]);
@@ -178,5 +229,6 @@ int main(int argc, char *argv[]){
 		clearerr(stdin); // clear EOF flag after ever call  ...
 	}
 	optionSelectionPrint();
+
 	return 0;
 }
