@@ -2,12 +2,13 @@
  * Reverse-engineer of [cat] function
  * author: Quoc Bui
  * v.0.0.1
- * 0.0.1
  * 1. implement -b, -n, -v, -e, -t, -s
  *    Have implemented -n and when user input nothing
  *    Have implemented -b -s properly
- *    Implemented -u disable_lock	
+ *    Implemented -u disable_lock
+ * 	  Implemented -v -t -e for displaying special characters
  * 2. implement multiple text files together - Done
+ * 3. implement cat - - - | Done
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,7 +17,7 @@
 #include <stdbool.h> 	// if boolean or not
 #include <unistd.h> 	// for 'dup' and 'fileno'
 
-#define BLOCK 1024 // optimal
+#define BLOCK 1024 // 1KB
 
 /* declare option functions, might move this to a header file*/ 
 void number_non_blank_lines(); 	// -b
@@ -89,7 +90,7 @@ bool fileExists(const char *filename){
 	return stat(filename, &buffer) == 0 ? true : false;
 }
 
-// number the lines function
+// number the lines function -n
 int printNumLines(int lineNo, char prevChar){
 	if (ALLNUM != 1) return lineNo;
 	
@@ -99,7 +100,7 @@ int printNumLines(int lineNo, char prevChar){
 	return lineNo;
 }
 
-//  number the non blank lines function
+//  number the non blank lines function -b
 int printNumNonBlank(int lineNo, char curChar, char prevChar){
 	if (SOMENUM != 1) return lineNo;
 	
@@ -109,7 +110,7 @@ int printNumNonBlank(int lineNo, char curChar, char prevChar){
 	return lineNo;
 }
 
-// squeeze empty lines
+// squeeze empty lines -s 
 int squeezeEmptyLines(char ch, int *consecutiveNewlines){
 	if (SQUEEZE != 1) return 1;
 	
@@ -121,6 +122,38 @@ int squeezeEmptyLines(char ch, int *consecutiveNewlines){
 		*consecutiveNewlines = 0;
     
 	return 1;
+}
+
+// display non-printing chars -v
+void makeVisibleChar(int ch){
+
+	if (ch == '\n') // get rid of case ^J as \n = 10 
+		putchar(ch); 
+	else if (ch == 9 && TAB == 1) // -t | display tab if user selected the option
+		fprintf(stdout,"^%c", ch + 64); // because I = 73
+	else if (ch >= 1 && ch<= 26 && ch != 9)
+		fprintf(stdout, "^%c", ch + 64); // because A = 65
+	else if(ch == 127)
+		fprintf(stdout, "^?");
+	else if(ch >= 128)
+		fprintf(stdout, "M-%c", ch & 0x7F); // characters of low 7 bits
+	else
+		putchar(ch);
+		
+}
+
+// replace putchar() in processFile(), added with options
+void modifyPrintChar(int ch){
+	if (ALLCHAR == 1 || TAB == 1 || DOLLAR == 1){
+		if (ch == '\n' && DOLLAR == 1){ // -e option, only for end of line
+			putchar('$');
+			putchar(ch);
+			return;
+		}
+		makeVisibleChar(ch);
+	}
+	else
+		putchar(ch);
 }
 
 // print lines
@@ -156,8 +189,8 @@ void processFile(FILE *fp){
 		// -b
 		lineNo = printNumNonBlank(lineNo, ch, prevChar);
 		
-		putchar(ch);
 		prevChar = ch; // to deal with EOF cases
+		modifyPrintChar(ch); // replacement for putchar()
 	}
 
 }
@@ -184,7 +217,7 @@ void simplyEcho(){
 	}
 }
 
-// function for development
+// check which options user selected
 void optionSelectionPrint(){
 	fprintf(stderr, "-------------------------\n"
 					"Selections user did:\n"
