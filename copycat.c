@@ -8,7 +8,8 @@
  *    Implemented -u disable_lock
  * 	  Implemented -v -t -e for displaying special characters
  * 2. implement multiple text files together - Done
- * 3. implement cat - - - | Done
+ * 3. implement copycat - - - | Done
+ * 4. implemented ./copycat -benv 
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,16 +19,6 @@
 #include <unistd.h> 	// for 'dup' and 'fileno'
 
 #define BLOCK 1024 // 1KB
-
-/* declare option functions, might move this to a header file*/ 
-void number_non_blank_lines(); 	// -b
-void number_lines(FILE *fp); 	// -n
-void non_print(); 				// -v
-void non_print_char_dollar(); 	// -e
-void non_print_tab(); 			// -t
-void squeeze_empty_lines(); 	// -s
-void advisory_lock(); 			// -l
-void disable_out_buffer(); 		// -u
  
 /* global option variables */
 int SOMENUM 	= 0; 	// -b
@@ -38,6 +29,13 @@ int TAB 		= 0;  	// -t
 int SQUEEZE 	= 0;	// -s
 int LOCK 		= 0; 	// -l
 int DISABLE 	= 0; 	// -u
+
+
+// return true if file exists | https://www.learnc.net/c-tutorial/c-file-exists/
+bool fileExists(const char *filename){
+	struct stat buffer;
+	return stat(filename, &buffer) == 0 ? true : false;
+}
 
 // error print message
 void invalidOption(char c){
@@ -81,13 +79,6 @@ void option(char *str){
 			default:				 break;
 		}
 	}
-}
-
-// return true if file exists
-// https://www.learnc.net/c-tutorial/c-file-exists/
-bool fileExists(const char *filename){
-	struct stat buffer;
-	return stat(filename, &buffer) == 0 ? true : false;
 }
 
 // number the lines function -n
@@ -209,15 +200,21 @@ void performOperation(const char *filename){
     fclose(fp); // Close the file
 }
 
-// simplyEcho() function
+/* simplyEcho() function
 void simplyEcho(){
 	char buffer[BLOCK];
 	while ( fgets(buffer, BLOCK, stdin) != NULL ){ 
 		fprintf(stdout, "%s", buffer);
 	}
+}*/
+
+// simpleyEcho() version 2
+void simplyEcho(){
+	processFile(stdin);
 }
 
-// check which options user selected
+// test function pretty when printed so I will not remove it ...
+/* check which options user selected
 void optionSelectionPrint(){
 	fprintf(stderr, "-------------------------\n"
 					"Selections user did:\n"
@@ -231,10 +228,20 @@ void optionSelectionPrint(){
 					"int DISABLE 	= %d;	// -u\n" 
 					"-------------------------\n"
 					, SOMENUM, ALLNUM, ALLCHAR, DOLLAR, TAB, SQUEEZE, LOCK, DISABLE);
-}
+}*/
 
 int main(int argc, char *argv[]){
 	if (argc == 1){
+		simplyEcho();
+		return 0;
+	}
+
+	// case for copycat -options <no files>
+	if (argc == 2){
+		if (*argv[1] == '-'){
+			isValidOption(argv[1] + 1); // error checking
+			option(argv[1] + 1); // ex: "-bnv" -> "bnv"
+		}
 		simplyEcho();
 		return 0;
 	}
@@ -244,7 +251,7 @@ int main(int argc, char *argv[]){
 		setvbuf(stdout, NULL, _IONBF, 0);
 
 	for (int i = 1; i < argc; i++){
-		if (*argv[i] == '-'){
+		if (*argv[i] == '-'){ // make this more dynamic
 			if (strlen(argv[i]) == 1){
 				simplyEcho();
 			}
@@ -261,7 +268,6 @@ int main(int argc, char *argv[]){
 		}
 		clearerr(stdin); // clear EOF flag after ever call  ...
 	}
-	optionSelectionPrint();
 
 	return 0;
 }
