@@ -17,6 +17,7 @@
 #include <sys/stat.h> 	// check if it is a file
 #include <stdbool.h> 	// if boolean or not
 #include <unistd.h> 	// for 'dup' and 'fileno'
+#include <fcntl.h> 		// for lock and unlock open files
 
 #define BLOCK 1024 // 1KB
  
@@ -30,6 +31,22 @@ int SQUEEZE 	= 0;	// -s
 int LOCK 		= 0; 	// -l
 int DISABLE 	= 0; 	// -u
 
+
+/* function headers */
+bool fileExists(const char *filename);
+void invalidOption(char c);
+void isValidOption(char *str);
+void option(char *str);
+int printNumLines(int lineNo, char prevChar);
+int printNumNonBlank(int lineNo, char curChar, char prevChar);
+int squeezeEmptyLines(char ch, int *consecutiveNewlines);
+void makeVisibleChar(int ch);
+void modifyPrintChar(int ch);
+void modifyPrintChar(int ch);
+void performOperation(const char *filename);
+void simplyEcho();
+void lockOut();
+void unlockOut();
 
 // return true if file exists | https://www.learnc.net/c-tutorial/c-file-exists/
 bool fileExists(const char *filename){
@@ -163,7 +180,7 @@ void processFile(FILE *fp){
 	}
 
 	// Process the first char
-	putchar(ch);
+	modifyPrintChar(ch);
 	prevChar = ch;
 
 	// Use fgetc to read the file
@@ -200,48 +217,60 @@ void performOperation(const char *filename){
     fclose(fp); // Close the file
 }
 
-/* simplyEcho() function
-void simplyEcho(){
-	char buffer[BLOCK];
-	while ( fgets(buffer, BLOCK, stdin) != NULL ){ 
-		fprintf(stdout, "%s", buffer);
-	}
-}*/
-
 // simpleyEcho() version 2
 void simplyEcho(){
 	processFile(stdin);
 }
 
-// test function pretty when printed so I will not remove it ...
-/* check which options user selected
-void optionSelectionPrint(){
-	fprintf(stderr, "-------------------------\n"
-					"Selections user did:\n"
-					"int SOMENUM 	= %d; 	// -b\n"
-					"int ALLNUM 	= %d;  	// -n\n"
-					"int ALLCHAR 	= %d;  	// -v\n"
-					"int DOLLAR 	= %d;  	// -e\n"
-					"int TAB 	= %d;  	// -t\n"
-					"int SQUEEZE 	= %d;	// -s\n"
-					"int LOCK 	= %d; 	// -l\n"
-					"int DISABLE 	= %d;	// -u\n" 
-					"-------------------------\n"
-					, SOMENUM, ALLNUM, ALLCHAR, DOLLAR, TAB, SQUEEZE, LOCK, DISABLE);
-}*/
+// lockOut() function, lock the STDOUT file descriptor
+void lockOut(){
+	struct flock lock;
+	lock.l_type = F_WRLCK; // lock operation type: Exclusive write lock
+	lock.l_whence = SEEK_SET; // indicator
+	lock.l_start = 0; // where to start
+	lock.l_len = 0; // 0 means lock until end of file
+
+	int fd = fileno(stdout); // file descriptor
+	if (fcntl(fd, F_SETLKW, &lock) == -1){
+		fprintf(stderr, "Failed to lock\n");
+		exit(1);
+	}
+}
+
+// unlockOut(), unlock STDOUT, we are now done...
+void unlockOut(){
+	struct flock lock;
+	lock.l_type = F_UNLCK; // unlock
+	lock.l_whence = SEEK_SET;
+	lock.l_start = 0;
+	lock.l_len = 0;
+
+	int fd = fileno(stdout);
+	if (fcntl(fd, F_SETLK, &lock) == -1) {
+    	fprintf(stderr, "Failed to unlock\n");
+		exit(1);
+	}
+}
 
 int main(int argc, char *argv[]){
+	// case when only ./copycat is called
 	if (argc == 1){
 		simplyEcho();
 		return 0;
 	}
 
-	// case for copycat -options <no files>
-	if (argc == 2){
+	// set up options early so we can call lockOut()
+	if (argc >= 2){
 		if (*argv[1] == '-'){
 			isValidOption(argv[1] + 1); // error checking
 			option(argv[1] + 1); // ex: "-bnv" -> "bnv"
 		}
+	}
+
+	if (LOCK == 1) lockOut(); // -l option, lock the file
+
+	// case for copycat -options <no files>
+	if (argc == 2){
 		simplyEcho();
 		return 0;
 	}
@@ -251,7 +280,7 @@ int main(int argc, char *argv[]){
 		setvbuf(stdout, NULL, _IONBF, 0);
 
 	for (int i = 1; i < argc; i++){
-		if (*argv[i] == '-'){ // make this more dynamic
+		if (*argv[i] == '-'){ // allow to place -option anywhere on the cli
 			if (strlen(argv[i]) == 1){
 				simplyEcho();
 			}
@@ -268,6 +297,8 @@ int main(int argc, char *argv[]){
 		}
 		clearerr(stdin); // clear EOF flag after ever call  ...
 	}
+
+	if (LOCK == 1) unlockOut(); // now we can unlock
 
 	return 0;
 }
