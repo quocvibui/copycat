@@ -270,8 +270,7 @@ int main(int argc, char *argv[]){
 	if (LOCK == 1) lockOut(); // -l option, lock the file
 
 	// -u disable output buffering, placed here so we can call it once
-	if (DISABLE == 1)
-		setvbuf(stdout, NULL, _IONBF, 0);
+	if (DISABLE == 1) setvbuf(stdout, NULL, _IONBF, 0);
 
 	// case for copycat -ln
 	if (argc == 2 && *argv[1] == '-'){
