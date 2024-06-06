@@ -2,14 +2,15 @@
  * Reverse-engineer of [cat] function
  * author: Quoc Bui
  * v.0.0.1
- * 1. implement -b, -n, -v, -e, -t, -s
+ * 1. implement -b, -n, -v, -e, -t, -s & -l
  *    Have implemented -n and when user input nothing
  *    Have implemented -b -s properly
  *    Implemented -u disable_lock
  * 	  Implemented -v -t -e for displaying special characters
- * 2. implement multiple text files together - Done
+ *    Implemented -l | advisory lock
+ * 2. implement multiple text files together | Done
  * 3. implement copycat - - - | Done
- * 4. implemented ./copycat -benv 
+ * 4. implemented ./copycat -benv... | Done
  */
 #include <stdio.h>
 #include <stdlib.h>
