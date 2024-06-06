@@ -273,6 +273,12 @@ int main(int argc, char *argv[]){
 	if (DISABLE == 1)
 		setvbuf(stdout, NULL, _IONBF, 0);
 
+	// case for copycat -ln
+	if (argc == 2 && *argv[1] == '-'){
+		simplyEcho();
+		return 0;
+	}
+
 	for (int i = 1; i < argc; i++){
 		if (*argv[i] == '-'){ // allow to place -option anywhere on the cli
 			if (strlen(argv[i]) == 1){
