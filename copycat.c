@@ -269,12 +269,6 @@ int main(int argc, char *argv[]){
 
 	if (LOCK == 1) lockOut(); // -l option, lock the file
 
-	// case for copycat -options <no files>
-	if (argc == 2){
-		simplyEcho();
-		return 0;
-	}
-
 	// -u disable output buffering, placed here so we can call it once
 	if (DISABLE == 1)
 		setvbuf(stdout, NULL, _IONBF, 0);
